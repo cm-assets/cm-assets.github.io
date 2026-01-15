@@ -37,6 +37,7 @@
       background: #f9f9f9;
       border-radius: 4px;
       margin-bottom: 10px;
+      cursor: pointer;
     }
     .url-container {
       display: flex;
@@ -65,34 +66,70 @@
     .copy-btn.copied {
       background: #28a745;
     }
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 40px;
+    }
+    .error {
+      text-align: center;
+      color: #dc3545;
+      padding: 40px;
+    }
   </style>
 </head>
 <body>
   <h1>Image Assets</h1>
-  <div class="gallery" id="gallery"></div>
+  <div class="gallery" id="gallery">
+    <div class="loading">Loading images...</div>
+  </div>
 
   <script>
-    const images = [
-      'images/10-joshua-4.png',
-      'images/croppedCyberPatriot1_87000E0312051.webp'
-    ];
+    const REPO = 'cm-assets/cm-assets.github.io';
+    const BRANCH = 'main';
+    const IMAGE_FOLDER = 'images';
+    const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
 
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^/]*$/, '/');
     const gallery = document.getElementById('gallery');
 
-    images.forEach(imagePath => {
-      const fullUrl = baseUrl + imagePath;
-      const card = document.createElement('div');
-      card.className = 'image-card';
-      card.innerHTML = `
-        <img src="${imagePath}" alt="${imagePath}" class="thumbnail">
-        <div class="url-container">
-          <input type="text" class="url-input" value="${fullUrl}" readonly>
-          <button class="copy-btn" onclick="copyUrl(this)">Copy</button>
-        </div>
-      `;
-      gallery.appendChild(card);
-    });
+    async function loadImages() {
+      try {
+        const response = await fetch(`https://api.github.com/repos/${REPO}/contents/${IMAGE_FOLDER}?ref=${BRANCH}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch images');
+        }
+
+        const files = await response.json();
+        const images = files.filter(file =>
+          IMAGE_EXTENSIONS.some(ext => file.name.toLowerCase().endsWith(ext))
+        );
+
+        if (images.length === 0) {
+          gallery.innerHTML = '<div class="loading">No images found</div>';
+          return;
+        }
+
+        gallery.innerHTML = '';
+
+        images.forEach(image => {
+          const fullUrl = `https://cm-assets.github.io/${IMAGE_FOLDER}/${image.name}`;
+          const card = document.createElement('div');
+          card.className = 'image-card';
+          card.innerHTML = `
+            <img src="${fullUrl}" alt="${image.name}" class="thumbnail" onclick="window.open('${fullUrl}', '_blank')">
+            <div class="url-container">
+              <input type="text" class="url-input" value="${fullUrl}" readonly>
+              <button class="copy-btn" onclick="copyUrl(this)">Copy</button>
+            </div>
+          `;
+          gallery.appendChild(card);
+        });
+
+      } catch (error) {
+        gallery.innerHTML = `<div class="error">Error loading images: ${error.message}</div>`;
+      }
+    }
 
     function copyUrl(btn) {
       const input = btn.previousElementSibling;
@@ -105,6 +142,8 @@
         }, 2000);
       });
     }
+
+    loadImages();
   </script>
 </body>
 </html>
